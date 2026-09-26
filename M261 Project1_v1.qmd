@@ -1,0 +1,232 @@
+---
+title: "Does a High Population Percentage of Young Adults in California Counties Associate with Lower Republican Voter Share?"
+author: "Charlin Duff"
+thanks: "Project repository available at: [https://github.com/TypeCharStar/M261A-Project-1](https://github.com/TypeCharStar/M261A-Project-1)."
+date: today
+date-format: long
+abstract: "This study examines whether the population proportion of young adults (ages 18–34) in a California county is associated with the county’s Republican voter share. Using 2025 county-level data, we fit a simple linear regression model with Republican voter share as the response and young-adult population share as the predictor. The estimated slope parameter was negative, suggesting that counties with larger young-adult population shares tended to have lower Republican voter shares. These findings provide insight into the relationship between county age composition and party registration."
+format: pdf
+bibliography: C:/Users/charl/Documents/references.bib
+nocite: |
+  @*
+link-citations: true
+
+header-includes:
+  - \usepackage{xcolor}
+---
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+# load libraries
+library(tidyverse)
+library(ggpubr)
+library(patchwork)
+library(ggplot2)
+library(ggrepel)
+library(knitr)
+
+proj_data <- read.csv("C:/Users/charl/Downloads/m261A_proj_data.csv")
+```
+
+# Introduction
+
+Nationwide trends over the last decade have shown that younger voters tend to associate more with the Democratic Party than the Republican Party. [@pew_age_party_identification_2024] In this paper we take a more local look these trends to see how the political action (and inaction) of young adults affects Republican voter share in California counties. Using 2025 U.S. Census Bureau data, and Voter Registration Statistics from the California Secretary of State, we aim to answer the question: Does a High Population Percentage of Young Adults in California Counties Associate with Lower Republican Voter Share?
+
+We will investigate this question using a simple linear regression model that uses a county's young adult population percentage as a predictor, and their Republican voter share as our outcome. We then perform inference on the slope of this model to test for a statistically significant negative association between the variables.
+
+After analyzing our model and conducting inference, we find that there is a statistically significant negative association between young adult population share and Republican voter share in California counties. This is important because it could prompt further research into why young adults in California are choosing to politically affiliate less with the Republican party.
+
+The remainder of this paper first looks at our data, then we discuss methods, after that we look at the results of our model, and finally we discuss the analysis, implications, and limitations.
+
+# Data
+
+To perform my analysis, I combined datasets from the U.S. Census Bureau - 2025 County Population by Characteristics [@census_county_population_2025] and California Secretary of State - 2025 Report of Registration.[@california_sos_registration_2025]
+
+Our observational units are the 58 California Counties.
+
+Our relevant variables include: `county`, which is the name of a county, `ya_pop_pct`, our predictor variable, which is the percentage of 18-34 year olds in county, and `reg_rep_oo_elig`, our response variable, which is the percentage of registered Republican voters in a county, calculated by dividing the total number of registered Republican voters in that county by the total number of people eligible to register to vote in that county. Both variables are measured using the most recent full year data, which is for 2025. Since we plan to fit a simple linear regression model, we limit our observations to a single year. This aids in preventing any correlation of errors that can arise from time-series data. Using the **most recent** year allows us to focus on current political trends.
+
+We chose the age range 18-34 to measure young adult population since it is a range the U.S. Census Bureau has used in recent years to broadly define the term. [@vespa_young_adulthood_2017]
+
+We chose to measure the proportion of Republican voters by dividing the number of registered Republican voters by the total number of people eligible to vote in a given county. We did this to control for people who live in the county but are ineligible to register to vote, for a variety of reasons (too young, not a citizen, felon, etc.)
+
+Below, we can see some descriptive statistics about our predictor and response variables.
+
+```{r}
+#| echo: false
+
+vars <- proj_data[c("ya_pop_pct", "reg_rep_oo_elig")]
+
+desc_stats <- data.frame(
+  N = sapply(vars, function(x) sum(!is.na(x))),
+  Mean = sapply(vars, mean, na.rm = TRUE),
+  SD = sapply(vars, sd, na.rm = TRUE),
+  Minimum = sapply(vars, min, na.rm = TRUE),
+  Median = sapply(vars, median, na.rm = TRUE),
+  Maximum = sapply(vars, max, na.rm = TRUE)
+)
+
+knitr::kable(
+  desc_stats,
+  caption = "Descriptive Statistics for Predictor and Response Variables",
+  digits = 3
+)
+```
+
+We notice that the mean population percentage of young adults in a county is 21.543%. The county with the lowest population percentage of young adults is Sierra county, where young adults only make up 11.136% of the population. In contrast, Yolo county has the highest percentage of young adults in their population, at 34.817%.
+
+When viewing the percentage of eligible voters registered as Republican in a county, the statewide mean is 27.287%. San Francisco county comes in with the lowest percentage of registered Republican voters, at only 6.179%. On the other hand, Amador county has the largest percentage of registered Republican voters at 46.588%.
+
+We do not observe any extreme values. The spread of both variables stays contained within 3.1 standard deviations of their respective means.
+
+# Methods
+
+To model the relationship between our variables, we utilize a simple linear regression model with population percentage of young adults as the predictor, and percentage of registered Republican voters as our response. For:
+
+$$Y_i=\beta_0+\beta_1X_i+\varepsilon_i$$
+
+$Y_i=$The percentage of registered Republican voters in the $i_{th}$ county.\
+$X_i=$The population percentage of young adults (Age 18-34) living in the $i_{\text{th}}$ county.\
+$\beta_0=$Our intercept parameter. This can be interpreted as the registered Republican voter share of a county if no young adults reside there.\
+$\beta_1=$Our slope parameter. This can be interpreted as the percentage-point decrease in registered Republican voter share per percentage-point increase in the population share of young adults in that county.\
+$\varepsilon_i=$Uncertainty in the Republican voter share of the $i_{\text{th}}$ county that can not be explained by our predictor variable (the proportion of young adults (age 18-34) in the county)
+
+We fit our model using the `lm()` function in R.[@r_core_team] All plots are created using the `ggplot2` library.
+
+```{r}
+#| echo: false
+#| output: false
+
+# create model object
+mj_model <-lm(reg_rep_oo_elig~ya_pop_pct,
+              data=proj_data)
+
+summary(mj_model)
+```
+
+There are a hierarchy of assumptions that must be met for our simple linear regression model to be valid, and we must be especially careful in our case, where we wish to make inferences regarding the slope parameter of our model.
+
+\underline{Assumptions:}
+
+**1. Linearity** Our mean function, $E(Y_i|X_i)=\beta_0+\beta_1X_i$, must be correctly specified.
+
+When viewing a scatterplot of our data, we see that points follow a vaugely linear shape. Furthermore, when viewing a residual vs predictor plot, we see a healthy scatter of points around the the $y=0$ line, which supports our assumption that the data is linearly related.
+
+**2. Independence of Errors** For all $i \neq j$, it must be the case that $E(\varepsilon_i|\varepsilon_j)=E(\varepsilon_i)$. In other words, the value of one error term should have no impact on the value of another.
+
+By limiting our data to a single year point, we control for any dependence of errors caused by time. However, we can not rule out the idea that the location of counties may influence one another. For 2 bordering counties, it is possible that the error terms could be correlated. We will mind this potential violation of the assumptions as we discuss our results.
+
+**3. Equal Variance of Errors** All error terms are be identically distributed with a mean of 0, and variance $\sigma^2$.
+
+Upon viewing a residual vs predictor plot for our model, we can be confident that there is no heteroskedasticity. The residuals for the predictors form an even scatter about zero, that does not cluster to one end and form a funnel shape.
+
+```{r}
+#| echo: false
+
+# getting the residuals for my model
+mj_res <- residuals(mj_model)
+mj_fit <-fitted.values(mj_model)
+
+# plotting residuals vs predictors plot
+mj_resvpre <- ggplot(proj_data, aes(x=ya_pop_pct,y=mj_res)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linewidth = 1, color = "pink4")+
+  labs(
+    x = "% of young adults in county",
+    y = "Residuals",
+    title = "Residual vs Predictor Plot for Population 
+Share of Young Adults vs Republican Voter Share",
+  ) +
+   theme_minimal()
+
+# view plot
+print(mj_resvpre)
+```
+
+**4. Normality of Errors** All error terms are identically distributed as $N(0,\sigma^2)$.
+
+When we create a normal Q-Q plot of our residuals, we find that they cluster around the line of equivalence, with slight departures at the tail ends. Our sample size is also requisitely large, at $n=58$, to apply the assumption of normality under the Central Limit Theorem. These conclusions allow us to assume that our error terms are approximately normally distributed.
+
+```{r}
+#| echo: false
+
+ggplot(proj_data, aes(sample = mj_res)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(title = "Normal Q-Q Plot of Residuals", 
+       x = "Theoretical Quantiles (Normal distribution)", 
+       y = "Sample Quantiles") +
+  theme_minimal()
+```
+
+# Results
+
+Below we see the fitted simple linear regression line imposed on a scatter plot of our predictor vs our response variable. Our fitted model takes the equation:
+
+$$\widehat{(\text{Repub Voter Share})}= 52.406-1.157(\text{Young Adult Pop Share})$$
+
+Where $b_0 =\hat{\beta_0}=52.406$ and $b_1 =\hat{\beta_1} = -1.157$. This negative slope parameter is of interest to our analysis.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+
+# view data
+mj_rp_plot <- ggplot(proj_data,aes(x=ya_pop_pct,y=reg_rep_oo_elig)) + 
+  geom_point() + 
+  #geom_text_repel(aes(label = county)) +
+  geom_smooth(method = lm, linewidth = 1,color = "pink3",se = FALSE) +
+  labs(
+    x = "Share of Young Adults (18-34) in Population (%)",
+    y = "Republican Voter Share of Elidgible Voters (%)",
+    title = "Population Share of Young Adults vs Republican Voter Share",
+  ) +
+   theme_minimal()
+
+# view plot
+print(mj_rp_plot)
+```
+
+The coefficient of determination $R^2$ measures the the proportion of variation in the data explained by our regression model. We observe $R^2=0.251$. This is only a moderate value, but we find it acceptable since there is a lot of uncertainty when attempting to model human behaviors. We do note that means there may be other factors influencing Republican voter share left out of our model.
+
+To test if there exists a statistically significant negative association between the share of young adults in a county, and republican voter share, We conduct a one-sided t-test with a $\alpha = 0.05$ Type I error rate on $\beta_1$
+
+$$H_0: \beta_1 = 0 \qquad\text{vs}\qquad H_1: \beta_1 < 0$$
+
+Our test statistic is: $$t^* =\frac{b_1}{\widehat{se(b_1)}} = \frac{-1.157}{0.267} = -4.\overline{333}$$ We can calculate the p-value of $t^*$ as:
+
+$$p = P(T_{56} \leq t^*)=3.057212\times10^{-5}$$
+
+Our p-value is much much smaller than our 0.05 Type I error rate. We can safely conclude that there does exist a statistically significant negative association between the share of young adults in a county, and republican voter share.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| output: false
+
+coefs <- summary(mj_model)$coefficients
+
+slope <- coefs["ya_pop_pct", "Estimate"]
+se <- coefs["ya_pop_pct", "Std. Error"]
+
+t_stat <- slope / se
+df <- df.residual(mj_model)
+
+p_value <- pt(t_stat, df = df, lower.tail = TRUE)
+
+t_stat
+p_value
+```
+
+# Discussion
+
+Through our analysis, we confirmed our suspicion that there exists a statistically significant negative association between the population proportion of young adults in a California county, and the Republican voter share of that county. Showing that this association exists is interesting and could lead to broader conversations about how political values differ between younger and older generations in California.
+
+Our study was not perfect, and could be improved upon in future research. Firstly, we can not rule out the possibility that some error terms are dependent based on location. A potential improvement of this study could be to include samples of disconnected counties from regions of the country, and broaden our research question, to try and control for this. Secondly, we observed a relatively low $R^2$ value. While human behavior is difficult to model perfectly, it would be interesting to see if a multiple regression model, where we could include other demographic variables, would yield model that explains more of the variation.
+
+# References
