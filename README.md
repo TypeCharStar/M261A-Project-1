@@ -3,7 +3,7 @@
 Author: Charlin Duff  
 Submission Date: 10-10-2026
 
-Project Folder Contents:
+Project Repository Contents:
 * M261-Project1_v2.pdf -> Compiled PDF of report
 * M261-Project1_v2.qmd -> Raw Quarto document of report, contains code for all figures and methods
 * references.bib -> BibTex document containing project references
