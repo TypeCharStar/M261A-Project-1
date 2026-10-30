@@ -1,11 +1,11 @@
-# M261A-Project-1 v.2
+# M261A-Project-1 v.3
 
 Author: Charlin Duff  
-Submission Date: 10-10-2026
+Submission Date: 10-30-2026
 
 Project Repository Contents:
-* M261-Project1_v2.pdf -> Compiled PDF of report
-* M261-Project1_v2.qmd -> Raw Quarto document of report, contains code for all figures and methods
+* M261-Project1_v3.pdf -> Compiled PDF of report
+* M261-Project1_v3.qmd -> Raw Quarto document of report, contains code for all figures and methods
 * references.bib -> BibTex document containing project references
 * Older Versions Folder -> Older versions of project documents
 
